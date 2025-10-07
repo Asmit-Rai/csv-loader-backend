@@ -30,8 +30,7 @@ app.post("/sign-in", (req, res) => {
 });
 
 app.post("/csv-data", (req, res) => {
-  const csvData = req.body;
-  storedCsvData = csvData;
+  storedCsvData = req.body.csvData || req.body;
   res.json({ 
     success: true, 
   });
