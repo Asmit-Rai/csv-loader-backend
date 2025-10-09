@@ -51,22 +51,19 @@ app.post("/api/uploads", upload.single("file"), (req, res) => {
     return res.status(400).json({ message: "No file uploaded." });
   }
 
-  console.log("--- File Received ---");
-  console.log("File Info:", file);
-  console.log("Configuration:", config);
-
   const preview = { headers: [], rows: [] };
 
   try {
     const fileContent = fs.readFileSync(file.path, "utf8");
-
     const hasHeaders = config.hasHeaders === "true";
-    
     const options = {
       delimiter: config.delimiter || ",",
       columns: hasHeaders,
       skip_empty_lines: true,
       trim: true,
+      quote: '"',                 
+      escape: '"',               
+      relax_column_count: true, 
     };
 
     const records = parseSync(fileContent, options);
@@ -76,7 +73,6 @@ app.post("/api/uploads", upload.single("file"), (req, res) => {
         preview.headers = Object.keys(records[0]);
         preview.rows = records.map(record => Object.values(record));
       } else {
-
         preview.headers = records[0].map((_, i) => `Column ${i + 1}`);
         preview.rows = records;
       }
@@ -88,20 +84,16 @@ app.post("/api/uploads", upload.single("file"), (req, res) => {
     if (fs.existsSync(file.path)) {
       fs.unlinkSync(file.path);
     }
-    return res.status(500).json({ message: "Failed to parse the uploaded file. It might be malformed." });
+    return res.status(500).json({ message: "Failed to parse the uploaded file. It is likely malformed." });
   }
   
   console.log("--- Processing Complete ---");
   res.status(200).json({
     message: `File '${file.originalname}' processed successfully!`,
-    fileInfo: {
-      filename: file.originalname,
-      size: file.size,
-    },
-    receivedConfig: config,
     preview,
   });
 });
+
 
 app.listen(port, () => {
   console.log(`✅ Server running at http://localhost:${port}`);
