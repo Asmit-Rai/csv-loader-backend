@@ -86,7 +86,7 @@ app.post("/api/uploads", (req, res) => {
         relax_column_count: true,
       };
 
-      const records = parseSync(fileContent, options);
+      const records = parse(fileContent, options);
 
       if (records.length > 0) {
         if (hasHeaders) {
