@@ -4,7 +4,7 @@ import cors from "cors";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-import { parseSync } from "csv-parse/sync";
+import { parse } from "csv-parse/sync";
 dotenv.config();
 
 const app = express();
@@ -66,7 +66,7 @@ app.post("/api/uploads", upload.single("file"), (req, res) => {
       relax_column_count: true, 
     };
 
-    const records = parseSync(fileContent, options);
+    const records = parse(fileContent, options);
 
     if (records.length > 0) {
       if (hasHeaders) {
