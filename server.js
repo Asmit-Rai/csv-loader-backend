@@ -43,7 +43,7 @@ app.get("/get-csv-data", (req, res) => {
   }
 });
 
-app.post("/api/uploads", upload.single("file"), (req, res) => {
+app.post("/api/uploads", (req, res) => {
   const file = req.file;
   const config = req.body;
 
@@ -56,29 +56,50 @@ app.post("/api/uploads", upload.single("file"), (req, res) => {
   try {
     const fileContent = fs.readFileSync(file.path, "utf8");
     const hasHeaders = config.hasHeaders === "true";
-    const options = {
-      delimiter: config.delimiter || ",",
-      columns: hasHeaders,
-      skip_empty_lines: true,
-      trim: true,
-      quote: '"',                 
-      escape: '"',               
-      relax_column_count: true, 
-    };
+    const lines = fileContent.split('\n').filter(line => line.trim() !== '');
 
-    const records = parse(fileContent, options);
+    if (config.delimiter === 'fixed') {
+      const fixedWidths = [
+        { start: 0, length: 10 },
+        { start: 10, length: 25 }, 
+        { start: 35, length: 15 },
+      ];
 
-    if (records.length > 0) {
-      if (hasHeaders) {
-        preview.headers = Object.keys(records[0]);
-        preview.rows = records.map(record => Object.values(record));
+      const parseLine = (line) => fixedWidths.map(col => line.substring(col.start, col.start + col.length).trim());
+      
+      if (hasHeaders && lines.length > 0) {
+        preview.headers = parseLine(lines[0]);
+        preview.rows = lines.slice(1).map(parseLine);
       } else {
-        preview.headers = records[0].map((_, i) => `Column ${i + 1}`);
-        preview.rows = records;
+        preview.headers = fixedWidths.map((_, i) => `Column ${i + 1}`);
+        preview.rows = lines.map(parseLine);
+      }
+
+    } else {
+      const options = {
+        delimiter: config.delimiter || ",", 
+        columns: hasHeaders,
+        skip_empty_lines: true,
+        trim: true,
+        quote: '"',
+        escape: '"',
+        relax_column_count: true,
+      };
+
+      const records = parseSync(fileContent, options);
+
+      if (records.length > 0) {
+        if (hasHeaders) {
+          preview.headers = Object.keys(records[0]);
+          preview.rows = records.map(record => Object.values(record));
+        } else {
+          preview.headers = records[0].map((_, i) => `Column ${i + 1}`);
+          preview.rows = records;
+        }
       }
     }
 
-    fs.unlinkSync(file.path); 
+    fs.unlinkSync(file.path);
   } catch (error) {
     console.error("Error processing CSV file:", error);
     if (fs.existsSync(file.path)) {
@@ -86,13 +107,14 @@ app.post("/api/uploads", upload.single("file"), (req, res) => {
     }
     return res.status(500).json({ message: "Failed to parse the uploaded file." });
   }
-  
+
   console.log("--- Processing Complete ---");
   res.status(200).json({
     message: `File '${file.originalname}' processed successfully!`,
     preview,
   });
 });
+
 
 
 app.listen(port, () => {
