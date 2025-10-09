@@ -1,11 +1,10 @@
-// server.js
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-
+import { parseSync } from "csv-parse/sync";
 dotenv.config();
 
 const app = express();
@@ -60,37 +59,48 @@ app.post("/api/uploads", upload.single("file"), (req, res) => {
 
   try {
     const fileContent = fs.readFileSync(file.path, "utf8");
-    const lines = fileContent.split("\n").filter((line) => line.trim() !== "");
-    const delimiter = config.delimiter || ",";
 
-    if (config.hasHeaders === "true" && lines.length > 0) {
-      preview.headers = lines[0].split(delimiter);
-      // preview.rows = lines.slice(1, 6).map((line) => line.split(delimiter));
-      preview.rows = lines.slice(1).map((line) => line.split(delimiter));
-    } else {
-      const firstRow = lines.length > 0 ? lines[0].split(delimiter) : [];
-      preview.headers = firstRow.map((_, i) => `Column ${i + 1}`);
-      preview.rows = lines.map((line) => line.split(delimiter));
+    const hasHeaders = config.hasHeaders === "true";
+    
+    const options = {
+      delimiter: config.delimiter || ",",
+      columns: hasHeaders,
+      skip_empty_lines: true,
+      trim: true,
+    };
+
+    const records = parseSync(fileContent, options);
+
+    if (records.length > 0) {
+      if (hasHeaders) {
+        preview.headers = Object.keys(records[0]);
+        preview.rows = records.map(record => Object.values(record));
+      } else {
+
+        preview.headers = records[0].map((_, i) => `Column ${i + 1}`);
+        preview.rows = records;
+      }
     }
-    fs.unlinkSync(file.path);
-  } catch (error) {
-    console.error("Error reading file for preview:", error);
-    fs.unlinkSync(file.path);
-    return res.status(500).json({ message: "Failed to read uploaded file." });
-  }
 
-  setTimeout(() => {
-    console.log("--- Processing Complete ---");
-    res.status(200).json({
-      message: `File '${file.originalname}' processed successfully!`,
-      fileInfo: {
-        filename: file.originalname,
-        size: file.size,
-      },
-      receivedConfig: config,
-      preview,
-    });
-  }, 2000);
+    fs.unlinkSync(file.path); 
+  } catch (error) {
+    console.error("Error processing CSV file:", error);
+    if (fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+    return res.status(500).json({ message: "Failed to parse the uploaded file. It might be malformed." });
+  }
+  
+  console.log("--- Processing Complete ---");
+  res.status(200).json({
+    message: `File '${file.originalname}' processed successfully!`,
+    fileInfo: {
+      filename: file.originalname,
+      size: file.size,
+    },
+    receivedConfig: config,
+    preview,
+  });
 });
 
 app.listen(port, () => {
