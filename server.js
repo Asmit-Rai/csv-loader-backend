@@ -43,7 +43,7 @@ app.get("/get-csv-data", (req, res) => {
   }
 });
 
-app.post("/api/uploads", (req, res) => {
+app.post("/api/uploads", upload.single("file"), (req, res) => {
   const file = req.file;
   const config = req.body;
 
@@ -61,8 +61,9 @@ app.post("/api/uploads", (req, res) => {
     if (config.delimiter === 'fixed') {
       const fixedWidths = [
         { start: 0, length: 10 },
-        { start: 10, length: 25 }, 
+        { start: 10, length: 25 },
         { start: 35, length: 15 },
+        // Add more column definitions as needed
       ];
 
       const parseLine = (line) => fixedWidths.map(col => line.substring(col.start, col.start + col.length).trim());
@@ -77,7 +78,7 @@ app.post("/api/uploads", (req, res) => {
 
     } else {
       const options = {
-        delimiter: config.delimiter || ",", 
+        delimiter: config.delimiter || ",",
         columns: hasHeaders,
         skip_empty_lines: true,
         trim: true,
@@ -85,8 +86,7 @@ app.post("/api/uploads", (req, res) => {
         escape: '"',
         relax_column_count: true,
       };
-
-      const records = parse(fileContent, options);
+      const records = parse(fileContent, options); 
 
       if (records.length > 0) {
         if (hasHeaders) {
@@ -114,7 +114,6 @@ app.post("/api/uploads", (req, res) => {
     preview,
   });
 });
-
 
 
 app.listen(port, () => {
