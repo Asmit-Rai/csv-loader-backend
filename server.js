@@ -84,7 +84,7 @@ app.post("/api/uploads", upload.single("file"), (req, res) => {
     if (fs.existsSync(file.path)) {
       fs.unlinkSync(file.path);
     }
-    return res.status(500).json({ message: "Failed to parse the uploaded file. It is likely malformed." });
+    return res.status(500).json({ message: "Failed to parse the uploaded file." });
   }
   
   console.log("--- Processing Complete ---");
